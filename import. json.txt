@@ -1,0 +1,38 @@
+import json
+import boto3
+import uuid
+import urllib.request
+
+s3 = boto3.client('s3')
+
+BUCKET_NAME = 'my-qr-code-ran'
+
+def lambda_handler(event, context):
+
+    text = event.get('text', '')
+
+    if not text:
+        return {
+            "statusCode": 400,
+            "body": json.dumps({"message": "text required"})
+        }
+
+    filename = f"{uuid.uuid4()}.png"
+    filepath = f"/tmp/{filename}"
+
+    # QR image generated using online API
+    url = f"https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={text}"
+
+    urllib.request.urlretrieve(url, filepath)
+
+    # Upload to S3
+    s3.upload_file(filepath, BUCKET_NAME, filename)
+
+    image_url = f"https://{BUCKET_NAME}.s3.amazonaws.com/{filename}"
+
+    return {
+        "statusCode": 200,
+        "body": json.dumps({
+            "imageUrl": image_url
+        })
+    }
